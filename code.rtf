@@ -1,0 +1,435 @@
+{\rtf1\ansi\ansicpg1252\deff0\nouicompat\deflang1033{\fonttbl{\f0\fnil\fcharset0 Calibri;}}
+{\*\generator Riched20 10.0.22621}\viewkind4\uc1 
+\pard\sa200\sl276\slmult1\f0\fs22\lang9 !pip install pydub moviepy yt-dlp opencv-python ffmpeg\par
+!apt-get install -y ffmpeg\par
+from pydub import AudioSegment\par
+from pydub.effects import normalize, low_pass_filter, high_pass_filter\par
+\par
+def improve_audio_quality(file_path):\par
+    # Load the audio file\par
+    audio = AudioSegment.from_file(file_path)\par
+\par
+    # Step 1: Normalize the audio (adjusts volume)\par
+    normalized_audio = normalize(audio)\par
+\par
+    # Step 2: Apply high-pass filter to reduce low-frequency noise\par
+    filtered_audio = high_pass_filter(normalized_audio, cutoff=150)\par
+\par
+    # Step 3: Apply low-pass filter to reduce high-frequency noise\par
+    final_audio = low_pass_filter(filtered_audio, cutoff=8000)\par
+\par
+    # Export the improved audio file\par
+    improved_audio_path = file_path.split('.')[0] + "_improved.wav"\par
+    final_audio.export(improved_audio_path, format="wav")\par
+\par
+    return improved_audio_path\par
+\par
+# Example usage\par
+improved_audio_path = improve_audio_quality("/content/entertainment.mp4")\par
+\par
+\par
+import moviepy.editor as mp\par
+import cv2\par
+\par
+def improve_video_quality(video_path, output_path):\par
+    # Load the video\par
+    clip = mp.VideoFileClip(video_path)\par
+\par
+    # Resize the video to a higher resolution (for example, upscale to 1080p)\par
+    resized_clip = clip.resize(newsize=(1920, 1080))\par
+\par
+    # Save the improved video\par
+    resized_clip.write_videofile(output_path, codec='libx264', preset='slow', ffmpeg_params=["-crf", "18"])\par
+\par
+# Example usage\par
+improve_video_quality("/content/entertainment.mp4", "/content/entertainment_improved.mp4")\par
+\par
+!pip install scikit-image moviepy opencv-python\par
+\par
+import cv2\par
+import time\par
+import moviepy.editor as mp\par
+from skimage.metrics import peak_signal_noise_ratio as psnr\par
+from skimage.metrics import structural_similarity as ssim\par
+import numpy as np\par
+\par
+# Function to compute PSNR and SSIM between two videos\par
+def compute_metrics(original_video_path, upscaled_video_path):\par
+    # Load the original video\par
+    original_clip = mp.VideoFileClip(original_video_path)\par
+    original_frames = [frame for frame in original_clip.iter_frames()]\par
+\par
+    # Load the upscaled video\par
+    upscaled_clip = mp.VideoFileClip(upscaled_video_path)\par
+    upscaled_frames = [frame for frame in upscaled_clip.iter_frames()]\par
+\par
+    # Ensure that both videos have the same number of frames\par
+    min_frames = min(len(original_frames), len(upscaled_frames))\par
+    original_frames = original_frames[:min_frames]\par
+    upscaled_frames = upscaled_frames[:min_frames]\par
+\par
+    psnr_values = []\par
+    ssim_values = []\par
+\par
+    # Iterate over each frame and compute PSNR and SSIM\par
+    for original_frame, upscaled_frame in zip(original_frames, upscaled_frames):\par
+        # Resize the original frame to match the upscaled resolution for comparison\par
+        resized_original_frame = cv2.resize(original_frame, (upscaled_frame.shape[1], upscaled_frame.shape[0]))\par
+\par
+        # Convert frames to grayscale for SSIM calculation\par
+        gray_original = cv2.cvtColor(resized_original_frame, cv2.COLOR_BGR2GRAY)\par
+        gray_upscaled = cv2.cvtColor(upscaled_frame, cv2.COLOR_BGR2GRAY)\par
+\par
+        # Calculate PSNR\par
+        psnr_value = psnr(gray_original, gray_upscaled)\par
+        psnr_values.append(psnr_value)\par
+\par
+        # Calculate SSIM\par
+        ssim_value, _ = ssim(gray_original, gray_upscaled, full=True)\par
+        ssim_values.append(ssim_value)\par
+\par
+    # Compute the average PSNR and SSIM\par
+    avg_psnr = np.mean(psnr_values)\par
+    avg_ssim = np.mean(ssim_values)\par
+\par
+    print(f'Average PSNR: \{avg_psnr:.2f\}')\par
+    print(f'Average SSIM: \{avg_ssim:.4f\}')\par
+\par
+    return avg_psnr, avg_ssim\par
+\par
+# Function to compute computational time for upscaling\par
+def compute_computational_time(video_path, output_path):\par
+    start_time = time.time()\par
+\par
+    # Load the video\par
+    clip = mp.VideoFileClip(video_path)\par
+\par
+    # Resize the video to a higher resolution (1080p)\par
+    resized_clip = clip.resize(newsize=(1920, 1080))\par
+\par
+    # Save the upscaled video (this step is timed)\par
+    resized_clip.write_videofile(output_path, codec='libx264', preset='slow', ffmpeg_params=["-crf", "18"])\par
+\par
+    end_time = time.time()\par
+    computational_time = end_time - start_time\par
+\par
+    print(f'Computational Time: \{computational_time:.2f\} seconds')\par
+    return computational_time\par
+\par
+# Corrected file paths\par
+original_video_path = '/content/entertainment.mp4'  # 480p video path\par
+improved_video_output_path = '/content/entertainment_improved.mp4'    # 1080p video path\par
+\par
+# Step 1: Measure PSNR and SSIM between original and upscaled videos\par
+print("Metrics for Original Video vs Upscaled Video:")\par
+avg_psnr_upscaled, avg_ssim_upscaled = compute_metrics(original_video_path, improved_video_output_path)\par
+\par
+# Step 2: Measure PSNR and SSIM between original and newly improved video\par
+print("\\nMetrics for Original Video vs Newly Improved Video (after upscaling):")\par
+avg_psnr_new, avg_ssim_new = compute_metrics(original_video_path, improved_video_output_path)\par
+\par
+# Step 3: Measure computational time for upscaling the original video\par
+print("\\nComputational Time for upscaling the original video to 1080p:")\par
+computational_time = compute_computational_time(original_video_path, improved_video_output_path)\par
+\par
+# Step 4: Average PSNR, SSIM, and Computational Time\par
+avg_psnr_total = (avg_psnr_upscaled + avg_psnr_new) / 2\par
+avg_ssim_total = (avg_ssim_upscaled + avg_ssim_new) / 2\par
+\par
+print(f"\\nAverage PSNR for both videos: \{avg_psnr_total:.2f\}")\par
+print(f"Average SSIM for both videos: \{avg_ssim_total:.4f\}")\par
+\par
+!pip install pydub moviepy yt-dlp opencv-python ffmpeg\par
+!apt-get install -y ffmpeg\par
+\par
+from pydub import AudioSegment\par
+from pydub.effects import normalize, low_pass_filter, high_pass_filter\par
+\par
+def improve_audio_quality(file_path):\par
+    # Load the audio file\par
+    audio = AudioSegment.from_file(file_path)\par
+\par
+    # Step 1: Normalize the audio (adjusts volume)\par
+    normalized_audio = normalize(audio)\par
+\par
+    # Step 2: Apply high-pass filter to reduce low-frequency noise\par
+    filtered_audio = high_pass_filter(normalized_audio, cutoff=150)\par
+\par
+    # Step 3: Apply low-pass filter to reduce high-frequency noise\par
+    final_audio = low_pass_filter(filtered_audio, cutoff=8000)\par
+\par
+    # Export the improved audio file\par
+    improved_audio_path = file_path.split('.')[0] + "_improved.wav"\par
+    final_audio.export(improved_audio_path, format="wav")\par
+\par
+    return improved_audio_path\par
+\par
+# Example usage: Improve audio quality\par
+improved_audio_path = improve_audio_quality("/content/endoscopic.mp4")\par
+\par
+\par
+import moviepy.editor as mp\par
+import cv2\par
+\par
+def improve_video_quality(video_path, output_path):\par
+    # Load the video\par
+    clip = mp.VideoFileClip(video_path)\par
+\par
+    # Resize the video to a higher resolution (for example, upscale to 1080p)\par
+    resized_clip = clip.resize(newsize=(1920, 1080))\par
+\par
+    # Save the improved video\par
+    resized_clip.write_videofile(output_path, codec='libx264', preset='slow', ffmpeg_params=["-crf", "18"])\par
+\par
+# Example usage\par
+improve_video_quality("/content/endoscopic.mp4", "/content/endoscopic_improved.mp4")\par
+\par
+\par
+!pip install scikit-image moviepy opencv-python\par
+\par
+import cv2\par
+import time\par
+import moviepy.editor as mp\par
+from skimage.metrics import peak_signal_noise_ratio as psnr\par
+from skimage.metrics import structural_similarity as ssim\par
+import numpy as np\par
+\par
+# Function to compute PSNR and SSIM between two videos\par
+def compute_metrics(original_video_path, upscaled_video_path):\par
+    # Load the original video\par
+    original_clip = mp.VideoFileClip(original_video_path)\par
+    original_frames = [frame for frame in original_clip.iter_frames()]\par
+\par
+    # Load the upscaled video\par
+    upscaled_clip = mp.VideoFileClip(upscaled_video_path)\par
+    upscaled_frames = [frame for frame in upscaled_clip.iter_frames()]\par
+\par
+    # Ensure that both videos have the same number of frames\par
+    min_frames = min(len(original_frames), len(upscaled_frames))\par
+    original_frames = original_frames[:min_frames]\par
+    upscaled_frames = upscaled_frames[:min_frames]\par
+\par
+    psnr_values = []\par
+    ssim_values = []\par
+\par
+    # Iterate over each frame and compute PSNR and SSIM\par
+    for original_frame, upscaled_frame in zip(original_frames, upscaled_frames):\par
+        # Resize the original frame to match the upscaled resolution for comparison\par
+        resized_original_frame = cv2.resize(original_frame, (upscaled_frame.shape[1], upscaled_frame.shape[0]))\par
+\par
+        # Convert frames to grayscale for SSIM calculation\par
+        gray_original = cv2.cvtColor(resized_original_frame, cv2.COLOR_BGR2GRAY)\par
+        gray_upscaled = cv2.cvtColor(upscaled_frame, cv2.COLOR_BGR2GRAY)\par
+\par
+        # Calculate PSNR\par
+        psnr_value = psnr(gray_original, gray_upscaled)\par
+        psnr_values.append(psnr_value)\par
+\par
+        # Calculate SSIM\par
+        ssim_value, _ = ssim(gray_original, gray_upscaled, full=True)\par
+        ssim_values.append(ssim_value)\par
+\par
+    # Compute the average PSNR and SSIM\par
+    avg_psnr = np.mean(psnr_values)\par
+    avg_ssim = np.mean(ssim_values)\par
+\par
+    print(f'Average PSNR: \{avg_psnr:.2f\}')\par
+    print(f'Average SSIM: \{avg_ssim:.4f\}')\par
+\par
+    return avg_psnr, avg_ssim\par
+\par
+# Function to compute computational time for upscaling\par
+def compute_computational_time(video_path, output_path):\par
+    start_time = time.time()\par
+\par
+    # Load the video\par
+    clip = mp.VideoFileClip(video_path)\par
+\par
+    # Resize the video to a higher resolution (1080p)\par
+    resized_clip = clip.resize(newsize=(1920, 1080))\par
+\par
+    # Save the upscaled video (this step is timed)\par
+    resized_clip.write_videofile(output_path, codec='libx264', preset='slow', ffmpeg_params=["-crf", "18"])\par
+\par
+    end_time = time.time()\par
+    computational_time = end_time - start_time\par
+\par
+    print(f'Computational Time: \{computational_time:.2f\} seconds')\par
+    return computational_time\par
+\par
+# Corrected file paths\par
+original_video_path = '/content/endoscopic.mp4'  # 480p video path\par
+improved_video_output_path = '/content/endoscopic_improved.mp4'    # 1080p video path\par
+\par
+# Step 1: Measure PSNR and SSIM between original and upscaled videos\par
+print("Metrics for Original Video vs Upscaled Video:")\par
+avg_psnr_upscaled, avg_ssim_upscaled = compute_metrics(original_video_path, improved_video_output_path)\par
+\par
+# Step 2: Measure PSNR and SSIM between original and newly improved video\par
+print("\\nMetrics for Original Video vs Newly Improved Video (after upscaling):")\par
+avg_psnr_new, avg_ssim_new = compute_metrics(original_video_path, improved_video_output_path)\par
+\par
+# Step 3: Measure computational time for upscaling the original video\par
+print("\\nComputational Time for upscaling the original video to 1080p:")\par
+computational_time = compute_computational_time(original_video_path, improved_video_output_path)\par
+\par
+# Step 4: Average PSNR, SSIM, and Computational Time\par
+avg_psnr_total = (avg_psnr_upscaled + avg_psnr_new) / 2\par
+avg_ssim_total = (avg_ssim_upscaled + avg_ssim_new) / 2\par
+\par
+print(f"\\nAverage PSNR for both videos: \{avg_psnr_total:.2f\}")\par
+print(f"Average SSIM for both videos: \{avg_ssim_total:.4f\}")\par
+\par
+!pip install pydub moviepy yt-dlp opencv-python ffmpeg\par
+!apt-get install -y ffmpeg\par
+\par
+from pydub import AudioSegment\par
+from pydub.effects import normalize, low_pass_filter, high_pass_filter\par
+\par
+def improve_audio_quality(file_path):\par
+    # Load the audio file\par
+    audio = AudioSegment.from_file(file_path)\par
+\par
+    # Step 1: Normalize the audio (adjusts volume)\par
+    normalized_audio = normalize(audio)\par
+\par
+    # Step 2: Apply high-pass filter to reduce low-frequency noise\par
+    filtered_audio = high_pass_filter(normalized_audio, cutoff=150)\par
+\par
+    # Step 3: Apply low-pass filter to reduce high-frequency noise\par
+    final_audio = low_pass_filter(filtered_audio, cutoff=8000)\par
+\par
+    # Export the improved audio file\par
+    improved_audio_path = file_path.split('.')[0] + "_improved.wav"\par
+    final_audio.export(improved_audio_path, format="wav")\par
+\par
+    return improved_audio_path\par
+\par
+# Example usage\par
+improved_audio_path = improve_audio_quality("/content/cctv.mp4")\par
+\par
+import moviepy.editor as mp\par
+import cv2\par
+\par
+def improve_video_quality(video_path, output_path):\par
+    # Load the video\par
+    clip = mp.VideoFileClip(video_path)\par
+\par
+    # Resize the video to a higher resolution (for example, upscale to 1080p)\par
+    resized_clip = clip.resize(newsize=(1920, 1080))\par
+\par
+    # Save the improved video\par
+    resized_clip.write_videofile(output_path, codec='libx264', preset='slow', ffmpeg_params=["-crf", "18"])\par
+\par
+# Example usage\par
+improve_video_quality("/content/cctv.mp4", "/content/cctv_improved.mp4")\par
+\par
+\par
+!pip install scikit-image moviepy opencv-python\par
+\par
+import cv2\par
+import time\par
+import moviepy.editor as mp\par
+from skimage.metrics import peak_signal_noise_ratio as psnr\par
+from skimage.metrics import structural_similarity as ssim\par
+import numpy as np\par
+\par
+# Function to compute PSNR and SSIM between two videos\par
+def compute_metrics(original_video_path, upscaled_video_path):\par
+    # Load the original video\par
+    original_clip = mp.VideoFileClip(original_video_path)\par
+    original_frames = [frame for frame in original_clip.iter_frames()]\par
+\par
+    # Load the upscaled video\par
+    upscaled_clip = mp.VideoFileClip(upscaled_video_path)\par
+    upscaled_frames = [frame for frame in upscaled_clip.iter_frames()]\par
+\par
+    # Ensure that both videos have the same number of frames\par
+    min_frames = min(len(original_frames), len(upscaled_frames))\par
+    original_frames = original_frames[:min_frames]\par
+    upscaled_frames = upscaled_frames[:min_frames]\par
+\par
+    psnr_values = []\par
+    ssim_values = []\par
+\par
+    # Iterate over each frame and compute PSNR and SSIM\par
+    for original_frame, upscaled_frame in zip(original_frames, upscaled_frames):\par
+        # Resize the original frame to match the upscaled resolution for comparison\par
+        resized_original_frame = cv2.resize(original_frame, (upscaled_frame.shape[1], upscaled_frame.shape[0]))\par
+\par
+        # Convert frames to grayscale for SSIM calculation\par
+        gray_original = cv2.cvtColor(resized_original_frame, cv2.COLOR_BGR2GRAY)\par
+        gray_upscaled = cv2.cvtColor(upscaled_frame, cv2.COLOR_BGR2GRAY)\par
+\par
+        # Calculate PSNR\par
+        psnr_value = psnr(gray_original, gray_upscaled)\par
+        psnr_values.append(psnr_value)\par
+\par
+        # Calculate SSIM\par
+        ssim_value, _ = ssim(gray_original, gray_upscaled, full=True)\par
+        ssim_values.append(ssim_value)\par
+\par
+    # Compute the average PSNR and SSIM\par
+    avg_psnr = np.mean(psnr_values)\par
+    avg_ssim = np.mean(ssim_values)\par
+\par
+    print(f'Average PSNR: \{avg_psnr:.2f\}')\par
+    print(f'Average SSIM: \{avg_ssim:.4f\}')\par
+\par
+    return avg_psnr, avg_ssim\par
+\par
+# Function to compute computational time for upscaling\par
+def compute_computational_time(video_path, output_path):\par
+    start_time = time.time()\par
+\par
+    # Load the video\par
+    clip = mp.VideoFileClip(video_path)\par
+\par
+    # Resize the video to a higher resolution (1080p)\par
+    resized_clip = clip.resize(newsize=(1920, 1080))\par
+\par
+    # Save the upscaled video (this step is timed)\par
+    resized_clip.write_videofile(output_path, codec='libx264', preset='slow', ffmpeg_params=["-crf", "18"])\par
+\par
+    end_time = time.time()\par
+    computational_time = end_time - start_time\par
+\par
+    print(f'Computational Time: \{computational_time:.2f\} seconds')\par
+    return computational_time\par
+\par
+# Corrected file paths\par
+original_video_path = '/content/cctv.mp4'  # 480p video path\par
+improved_video_output_path = '/content/cctv_improved.mp4'    # 1080p video path\par
+\par
+# Step 1: Measure PSNR and SSIM between original and upscaled videos\par
+print("Metrics for Original Video vs Upscaled Video:")\par
+avg_psnr_upscaled, avg_ssim_upscaled = compute_metrics(original_video_path, improved_video_output_path)\par
+\par
+# Step 2: Measure PSNR and SSIM between original and newly improved video\par
+print("\\nMetrics for Original Video vs Newly Improved Video (after upscaling):")\par
+avg_psnr_new, avg_ssim_new = compute_metrics(original_video_path, improved_video_output_path)\par
+\par
+# Step 3: Measure computational time for upscaling the original video\par
+print("\\nComputational Time for upscaling the original video to 1080p:")\par
+computational_time = compute_computational_time(original_video_path, improved_video_output_path)\par
+\par
+# Step 4: Average PSNR, SSIM, and Computational Time\par
+avg_psnr_total = (avg_psnr_upscaled + avg_psnr_new) / 2\par
+avg_ssim_total = (avg_ssim_upscaled + avg_ssim_new) / 2\par
+\par
+print(f"\\nAverage PSNR for both videos: \{avg_psnr_total:.2f\}")\par
+print(f"Average SSIM for both videos: \{avg_ssim_total:.4f\}")\par
+\par
+give me github repository for this whole code so that i can copy the github link and paste it in the research paper \par
+\par
+\par
+\par
+\par
+\par
+\par
+\par
+\par
+\par
+\par
+}
+ 
